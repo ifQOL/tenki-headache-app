@@ -3,9 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <title>気圧と頭痛チェック</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background: #f0f8ff;
+    }
+    .box {
+      background: white;
+      border-radius: 1rem;
+      padding: 1rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+  </style>
 </head>
 <body>
-  <h1>気圧による体調チェック</h1>
-  <p>ここに気圧データが表示されます（これから作っていくよ！）</p>
+  <h1>東京の気圧チェック（テスト表示）</h1>
+  <div class="box" id="pressure-box">
+    読み込み中...
+  </div>
+
+  <script>
+    // 仮の気圧データ（本物はあとで）
+    const pressureData = {
+      city: "東京",
+      date: "2025-04-06",
+      pressure: 1008.4
+    };
+
+    const box = document.getElementById("pressure-box");
+    box.innerHTML = `
+      <strong>${pressureData.city}</strong> の<br>
+      <strong>${pressureData.date}</strong> の気圧は<br>
+      <span style="font-size: 1.5em;">${pressureData.pressure} hPa</span> です。
+    `;
+  </script>
 </body>
 </html>
