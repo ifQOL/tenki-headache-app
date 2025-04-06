@@ -127,3 +127,49 @@
   </script>
 </body>
 </html>
+  <div class="box" id="forecast-box"></div>
+
+  <script>
+    async function checkFuturePressure(city) {
+      const { lat, lon } = cities[city];
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
+
+      const forecastBox = document.getElementById("forecast-box");
+      forecastBox.innerHTML = "";
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        const hours = data.hourly.time;
+        const pressures = data.hourly.pressure_msl;
+        const now = new Date();
+
+        for (let i = 0; i < hours.length - 3; i++) {
+          const time1 = new Date(hours[i]);
+          const time2 = new Date(hours[i + 3]);
+
+          // 未来のデータのみを見る
+          if (time1 <= now || time2 <= now) continue;
+
+          const diff = pressures[i + 3] - pressures[i];
+
+          if (Math.abs(diff) >= 3) {
+            const jstTime = time1.toLocaleString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+            const jstTime2 = time2.toLocaleString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+            const text = `📢 ${jstTime}～${jstTime2} に気圧が ${diff.toFixed(1)} hPa 変化する予報です。体調に注意してください。`;
+            forecastBox.innerHTML = text;
+            break;
+          }
+        }
+
+        // アラートが出なかった場合
+        if (forecastBox.innerHTML === "") {
+          forecastBox.innerHTML = "🕊 今後24時間に大きな気圧変化の予報はありません。";
+        }
+
+      } catch (e) {
+        forecastBox.innerHTML = "予報の取得に失敗しました。";
+      }
+    }
+  </script>
