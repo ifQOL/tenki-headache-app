@@ -106,7 +106,11 @@
 
         if (prevIndex >= 0) {
           const diff = nowPressure - pressures[prevIndex];
-          if (diff <= -3) {
+          if (diff <= -1) {
+  alertMessage = "⚠️（テスト）気圧が少し下がっています。";
+} else if (diff >= 1) {
+  alertMessage = "⚠️（テスト）気圧が少し上がっています。";
+}
             alertMessage = "⚠️ 気圧が3時間で急降下しています。体調に注意してください。";
           } else if (diff >= 3) {
             alertMessage = "⚠️ 気圧が急上昇しています。めまいやだるさに注意してください。";
