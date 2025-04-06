@@ -64,7 +64,7 @@
     const pressureBox = document.getElementById("pressure-box");
     const alertBox = document.getElementById("alert-box");
 
-    // 都市ボタン作成
+    // 都市ボタンを作成
     for (const city in cities) {
       const button = document.createElement("button");
       button.textContent = city;
@@ -107,13 +107,9 @@
         if (prevIndex >= 0) {
           const diff = nowPressure - pressures[prevIndex];
           if (diff <= -1) {
-  alertMessage = "⚠️（テスト）気圧が少し下がっています。";
-} else if (diff >= 1) {
-  alertMessage = "⚠️（テスト）気圧が少し上がっています。";
-}
-            alertMessage = "⚠️ 気圧が3時間で急降下しています。体調に注意してください。";
-          } else if (diff >= 3) {
-            alertMessage = "⚠️ 気圧が急上昇しています。めまいやだるさに注意してください。";
+            alertMessage = "⚠️（テスト）気圧が少し下がっています。";
+          } else if (diff >= 1) {
+            alertMessage = "⚠️（テスト）気圧が少し上がっています。";
           }
         }
 
