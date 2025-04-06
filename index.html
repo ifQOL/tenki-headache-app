@@ -14,21 +14,24 @@
       border-radius: 1rem;
       padding: 1rem;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-bottom: 1rem;
+    }
+    .alert {
+      color: red;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
   <h1>東京の気圧チェック（リアルタイム）</h1>
-  <div class="box" id="pressure-box">
-    読み込み中...
-  </div>
+  <div class="box" id="pressure-box">読み込み中...</div>
+  <div class="box alert" id="alert-box"></div>
 
   <script>
     async function fetchPressure() {
       const response = await fetch("https://api.open-meteo.com/v1/forecast?latitude=35.68&longitude=139.76&hourly=pressure_msl&timezone=Asia%2FTokyo");
       const data = await response.json();
 
-      // 現在時刻に一番近い気圧を探す
       const now = new Date();
       const hours = data.hourly.time;
       const pressures = data.hourly.pressure_msl;
@@ -45,12 +48,29 @@
         }
       }
 
-      const box = document.getElementById("pressure-box");
-      box.innerHTML = `
+      const nowPressure = pressures[closestIndex];
+      const nowTime = hours[closestIndex].replace('T', ' ');
+
+      // 3時間前の気圧
+      const prevIndex = closestIndex - 3;
+      let alertMessage = "";
+
+      if (prevIndex >= 0) {
+        const diff = nowPressure - pressures[prevIndex];
+        if (diff <= -3) {
+          alertMessage = "⚠️ 気圧が3時間で急降下しています。体調に注意してください。";
+        } else if (diff >= 3) {
+          alertMessage = "⚠️ 気圧が急上昇しています。めまいやだるさに注意してください。";
+        }
+      }
+
+      document.getElementById("pressure-box").innerHTML = `
         <strong>東京</strong> の<br>
-        <strong>${hours[closestIndex].replace('T', ' ')}</strong> の気圧は<br>
-        <span style="font-size: 1.5em;">${pressures[closestIndex]} hPa</span> です。
+        <strong>${nowTime}</strong> の気圧は<br>
+        <span style="font-size: 1.5em;">${nowPressure} hPa</span> です。
       `;
+
+      document.getElementById("alert-box").innerText = alertMessage;
     }
 
     fetchPressure();
