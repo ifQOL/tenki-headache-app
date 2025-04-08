@@ -44,6 +44,7 @@
   <div class="box" id="pressure-box">都市を選んでください</div>
   <div class="box" id="alert-box"></div>
   <div class="box" id="forecast-box"></div>
+  <div class="box" id="history-box"></div>
 
   <script>
     const cities = {
@@ -64,6 +65,8 @@
 
     const pressureBox = document.getElementById("pressure-box");
     const alertBox = document.getElementById("alert-box");
+    const forecastBox = document.getElementById("forecast-box");
+    const historyBox = document.getElementById("history-box");
 
     Object.keys(cities).forEach(city => {
       const btn = document.createElement("button");
@@ -74,16 +77,17 @@
 
     async function fetchPressure(city) {
       const { lat, lon } = cities[city];
+      const now = new Date();
+      const nowISO = now.toISOString();
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
 
       try {
-        const response = await fetch(url);
-        const data = await response.json();
-        const pressures = data.hourly.pressure_msl;
+        const res = await fetch(url);
+        const data = await res.json();
         const times = data.hourly.time;
-
-        const now = new Date();
+        const pressures = data.hourly.pressure_msl;
         const nowIndex = times.findIndex(t => new Date(t) > now);
+
         const currentPressure = pressures[nowIndex];
         const pastPressure = pressures[nowIndex - 3];
         const diff = currentPressure - pastPressure;
@@ -93,56 +97,76 @@
           ? `⚠️ 気圧が ${diff.toFixed(1)} hPa 変化しています。体調に注意してください。`
           : "現在の気圧変化は安定しています。";
 
-        pressureBox.innerHTML = `
-          <strong>${city}</strong> の<br>
-          <strong>${nowTime}</strong> の気圧は<br>
-          <span style="font-size: 1.5em;">${currentPressure} hPa</span> です。
-        `;
+        pressureBox.innerHTML = `<strong>${city}</strong> の<br><strong>${nowTime}</strong> の気圧は<br><span style="font-size: 1.5em;">${currentPressure} hPa</span> です。`;
         alertBox.innerText = alertMessage;
 
         checkFuturePressure(city);
+        compareWithYesterday(city);
 
-      } catch (error) {
-        pressureBox.innerHTML = "データ取得に失敗しました。";
-        console.error(error);
+      } catch (e) {
+        pressureBox.innerText = "データ取得に失敗しました。";
+        console.error(e);
       }
     }
 
     async function checkFuturePressure(city) {
       const { lat, lon } = cities[city];
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
-
-      const forecastBox = document.getElementById("forecast-box");
-      forecastBox.innerHTML = "";
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=pressure_msl_max,pressure_msl_min&timezone=Asia%2FTokyo`;
 
       try {
-        const response = await fetch(url);
-        const data = await response.json();
+        const res = await fetch(url);
+        const data = await res.json();
+        const maxes = data.daily.pressure_msl_max;
+        const mins = data.daily.pressure_msl_min;
+        const days = data.daily.time;
 
-        const hours = data.hourly.time;
-        const pressures = data.hourly.pressure_msl;
-        const now = new Date();
+        forecastBox.innerHTML = "";
 
-        for (let i = 0; i < hours.length - 3; i++) {
-          const time1 = new Date(hours[i]);
-          const time2 = new Date(hours[i + 3]);
-
-          if (time1 <= now || time2 <= now) continue;
-
-          const diff = pressures[i + 3] - pressures[i];
-
-          if (Math.abs(diff) >= 3) {
-            const jstTime = time1.toLocaleString("ja-JP", { hour: "2-digit", minute: "2-digit" });
-            const jstTime2 = time2.toLocaleString("ja-JP", { hour: "2-digit", minute: "2-digit" });
-            const text = `📢 ${jstTime}～${jstTime2} に気圧が ${diff.toFixed(1)} hPa 変化する予報です。体調に注意してください。`;
-            forecastBox.innerHTML = text;
-            return;
+        for (let i = 0; i < days.length; i++) {
+          const diff = maxes[i] - mins[i];
+          if (Math.abs(diff) >= 4) {
+            forecastBox.innerHTML += `🔮 ${days[i]} に ${diff.toFixed(1)} hPa の気圧差があります。<br>`;
           }
         }
 
-        forecastBox.innerHTML = "🕊 今後24時間に大きな気圧変化の予報はありません。";
+        if (!forecastBox.innerHTML) {
+          forecastBox.innerText = "🕊 今後1週間に大きな気圧変化の予報はありません。";
+        }
       } catch (e) {
-        forecastBox.innerHTML = "予報の取得に失敗しました。";
+        forecastBox.innerText = "予報取得に失敗しました。";
+        console.error(e);
+      }
+    }
+
+    async function compareWithYesterday(city) {
+      const { lat, lon } = cities[city];
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const start = yesterday.toISOString().split("T")[0];
+      const end = now.toISOString().split("T")[0];
+
+      const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const times = data.hourly.time;
+        const pressures = data.hourly.pressure_msl;
+
+        const sameHour = now.getHours();
+        const sameTimeIndex = times.findIndex(t => new Date(t).getHours() === sameHour);
+
+        if (sameTimeIndex !== -1) {
+          const yPressure = pressures[sameTimeIndex];
+          const diff = pressureBox.innerText.includes("hPa") ? parseFloat(pressureBox.innerText.match(/([\d\.]+) hPa/)[1]) - yPressure : 0;
+          historyBox.innerText = `昨日の同時刻と比べて ${diff.toFixed(1)} hPa ${diff >= 0 ? "上昇" : "低下"}しています。`;
+        } else {
+          historyBox.innerText = "昨日の同時刻の気圧データが見つかりませんでした。";
+        }
+      } catch (e) {
+        historyBox.innerText = "昨日との比較に失敗しました。";
+        console.error(e);
       }
     }
   </script>
