@@ -88,6 +88,70 @@ async function fetchCurrentPressure(city) {
   const end = today.toISOString().split("T")[0];
 
   const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  const pressures = data.hourly.pressure_msl;
+  const times = data.hourly.time.map(t => new Date(t));
+
+  const now = new Date();
+  let closestTodayIndex = 0;
+  let minDiffToday = Infinity;
+  let closestYesterdayIndex = 0;
+  let minDiffYesterday = Infinity;
+
+  for (let i = 0; i < times.length; i++) {
+    const diffMs = Math.abs(now - times[i]);
+    if (times[i].getDate() === today.getDate() && diffMs < minDiffToday) {
+      minDiffToday = diffMs;
+      closestTodayIndex = i;
+    }
+    if (times[i].getDate() === yesterday.getDate() && diffMs < minDiffYesterday) {
+      minDiffYesterday = diffMs;
+      closestYesterdayIndex = i;
+    }
+  }
+
+  const currentPressure = pressures[closestTodayIndex];
+  const yesterdayPressure = pressures[closestYesterdayIndex];
+  const diff = currentPressure - yesterdayPressure;
+
+  displayPressureInfo(currentPressure, diff);
+  fetchFutureForecast(city);
+}
+<script>
+const cities = {
+  Sapporo: { lat: 43.0642, lon: 141.3469 },
+  Sendai: { lat: 38.2688, lon: 140.8721 },
+  Niigata: { lat: 37.9026, lon: 139.0236 },
+  Tokyo: { lat: 35.6895, lon: 139.6917 },
+  Kanazawa: { lat: 36.5613, lon: 136.6562 },
+  Nagoya: { lat: 35.1815, lon: 136.9066 },
+  Osaka: { lat: 34.6937, lon: 135.5023 },
+  Hiroshima: { lat: 34.3853, lon: 132.4553 },
+  Kochi: { lat: 33.5597, lon: 133.5311 },
+  Fukuoka: { lat: 33.5904, lon: 130.4017 },
+  Naha: { lat: 26.2124, lon: 127.6809 },
+  Saitama: { lat: 35.8617, lon: 139.6455 },
+  Kanagawa: { lat: 35.4478, lon: 139.6425 }
+};
+
+document.getElementById("city").addEventListener("change", () => {
+  const city = document.getElementById("city").value;
+  fetchCurrentPressure(city);
+});
+
+async function fetchCurrentPressure(city) {
+  const { lat, lon } = cities[city];
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  const start = yesterday.toISOString().split("T")[0];
+  const end = today.toISOString().split("T")[0];
+
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
   const res = await fetch(url);
   const data = await res.json();
 
@@ -106,61 +170,3 @@ async function fetchCurrentPressure(city) {
   displayPressureInfo(currentPressure, diff);
   fetchFutureForecast(city);
 }
-function displayPressureInfo(currentPressure, diff) {
-  const info = document.getElementById("pressureInfo");
-  let level = 0;
-  if (Math.abs(diff) >= 2 && Math.abs(diff) < 5) level = 1;
-  else if (Math.abs(diff) >= 5 && Math.abs(diff) < 8) level = 2;
-  else if (Math.abs(diff) >= 8) level = 3;
-
-  const levelTexts = ["🕊 安定", "😟 しんどいかも", "😖 しんどい", "😫 超しんどい"];
-  info.className = `info level-${level}`;
-  info.innerHTML = `
-    現在の気圧: ${currentPressure.toFixed(1)} hPa<br>
-    昨日との差: ${diff.toFixed(1)} hPa → ${levelTexts[level]}
-  `;
-}
-
-async function fetchFutureForecast(city) {
-  const { lat, lon } = cities[city];
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&daily=pressure_msl_max,pressure_msl_min&timezone=Asia%2FTokyo`;
-
-  const res = await fetch(url);
-  const data = await res.json();
-
-  const futureBox = document.getElementById("futureForecast");
-  const alertBox = document.getElementById("alertMessage");
-  futureBox.innerHTML = "<strong>未来7日間の気圧変動:</strong><br>";
-  alertBox.innerHTML = "";
-
-  const pressures = data.hourly.pressure_msl;
-  const times = data.hourly.time;
-
-  // 急変パターン検出（24時間内）
-  for (let i = 0; i < pressures.length - 2; i++) {
-    const first = pressures[i];
-    const mid = pressures[i + 1];
-    const last = pressures[i + 2];
-    if ((first > mid && mid < last) || (first < mid && mid > last)) {
-      const t1 = new Date(times[i]).toLocaleTimeString("ja-JP", { hour: '2-digit', hour12: false });
-      const t3 = new Date(times[i+2]).toLocaleTimeString("ja-JP", { hour: '2-digit', hour12: false });
-      alertBox.innerHTML = `⚡ 急変注意：${t1}時〜${t3}時に気圧反転の可能性あり！`;
-      break;
-    }
-  }
-
-  // 未来1週間の日ごとの最大・最小差
-  const maxes = data.daily.pressure_msl_max;
-  const mins = data.daily.pressure_msl_min;
-  const days = data.daily.time;
-
-  for (let d = 0; d < days.length; d++) {
-    const gap = maxes[d] - mins[d];
-    if (Math.abs(gap) >= 4) {
-      futureBox.innerHTML += `📅 ${days[d]}: 気圧差 ${gap.toFixed(1)} hPa → 注意！<br>`;
-    }
-  }
-}
-</script>
-</body>
-</html>
