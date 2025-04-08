@@ -168,38 +168,9 @@ async function fetchCurrentPressure(city) {
 
   const currentPressure = pressures[closestIndex];
 
-  const savedData = JSON.parse(localStorage.getItem("yesterdayPressure") || "null");
-  let message = "";
-
-  if (savedData && savedData.pressure && savedData.date) {
-    const savedDate = new Date(savedData.date);
-    const today = new Date();
-    if (today.getDate() - savedDate.getDate() === 1 ||
-        (savedDate.getDate() === new Date(today.getFullYear(), today.getMonth(), 0).getDate() && today.getDate() === 1)) {
-      const diff = currentPressure - savedData.pressure;
-      let level = 0;
-      if (Math.abs(diff) >= 2 && Math.abs(diff) < 5) level = 1;
-      else if (Math.abs(diff) >= 5 && Math.abs(diff) < 8) level = 2;
-      else if (Math.abs(diff) >= 8) level = 3;
-
-      const levelTexts = ["🕊 安定", "⚠️ 要注意", "⚠️⚠️ 注意", "⚠️⚠️⚠️ 超注意"];
-      message = `昨日との差: ${diff.toFixed(1)} hPa → ${levelTexts[level]}`;
-    } else {
-      message = "昨日のデータはありません。";
-    }
-  } else {
-    message = "昨日のデータはありません。";
-  }
-
   document.getElementById("pressureInfo").innerHTML = `
-    現在の気圧: ${currentPressure.toFixed(1)} hPa<br>
-    ${message}
+    現在の気圧: ${currentPressure.toFixed(1)} hPa
   `;
-
-  localStorage.setItem("yesterdayPressure", JSON.stringify({
-    pressure: currentPressure,
-    date: now.toISOString()
-  }));
 
   fetchFutureForecast(city, pressures, times);
 }
@@ -224,134 +195,40 @@ async function fetchFutureForecast(city, pressures, times) {
   alertBox.innerHTML = "";
 
   const pressuresDailyMax = data.daily.pressure_msl_max;
-  const pressuresDailyMin = data.daily.pressure_msl_min;
-  const tempMax = data.daily.temperature_2m_max;
-  const tempMin = data.daily.temperature_2m_min;
   const days = data.daily.time;
 
-  let cautionCount = 0;
+  if (pressureChart) pressureChart.destroy();
+  const ctx = document.getElementById('pressureChart').getContext('2d');
 
- if (pressureChart) pressureChart.destroy();
-const ctx = document.getElementById('pressureChart').getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+  gradient.addColorStop(0, 'rgba(0, 123, 255, 0.6)');
+  gradient.addColorStop(1, 'rgba(0, 123, 255, 0.05)');
 
-// ここでグラデーションを作る
-const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-gradient.addColorStop(0, 'rgba(0, 123, 255, 0.6)'); // 上の色（濃い水色）
-gradient.addColorStop(1, 'rgba(0, 123, 255, 0.05)'); // 下の色（超薄い水色）
-
-pressureChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: days,
-    datasets: [{
-      label: '気圧変化（hPa）',
-      data: pressuresDailyMax,
-      borderColor: 'rgba(0, 123, 255, 1)', // 線の色
-      backgroundColor: gradient, // ここにグラデーションを渡す
-      fill: true, // 線の下を塗りつぶす
-      tension: 0.4, // なめらかカーブ
-      pointRadius: 2,
-      pointHoverRadius: 6,
-      pointBackgroundColor: 'rgba(0, 123, 255, 1)'
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: {
-      duration: 1000,
-      easing: 'easeOutQuart'
+  pressureChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [{
+        label: '気圧変化（hPa）',
+        data: pressuresDailyMax,
+        borderColor: 'rgba(0, 123, 255, 1)',
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 2,
+        pointHoverRadius: 6,
+        pointBackgroundColor: 'rgba(0, 123, 255, 1)'
+      }]
     },
-    scales: {
-      y: {
-        ticks: {
-          callback: function(value) {
-            return value + ' hPa';
-          },
-          color: '#555',
-          font: {
-            size: 12
-          }
-        },
-        grid: {
-          color: 'rgba(200,200,200,0.2)'
-        }
-      },
-      x: {
-        ticks: {
-          color: '#555',
-          font: {
-            size: 12
-          },
-          maxRotation: 45,
-          minRotation: 45
-        },
-        grid: {
-          display: false
-        }
-      }
-    },
-    plugins: {
-      legend: {
-        display: true,
-        labels: {
-          color: '#333',
-          font: {
-            size: 14
-          }
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        titleFont: {
-          size: 14
-        },
-        bodyFont: {
-          size: 12
-        }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 1000,
+        easing: 'easeOutQuart'
       }
     }
-  }
-});
-
-  for (let d = 0; d < days.length; d++) {
-    const gap = pressuresDailyMax[d] - pressuresDailyMin[d];
-    const tempGap = tempMax[d] - tempMin[d];
-
-    let warnings = "";
-    let level = "";
-
-    if (Math.abs(gap) >= 4) {
-      warnings += `🌀 気圧差${gap.toFixed(1)}hPa `;
-    }
-    if (tempGap >= 7 && tempGap < 10) {
-      warnings += `🌡️寒暖差注意(${tempGap.toFixed(1)}℃) `;
-      level = "caution";
-    } else if (tempGap >= 10 && tempGap < 15) {
-      warnings += `🌡️🌡️寒暖差大注意(${tempGap.toFixed(1)}℃) `;
-      level = "warning";
-    } else if (tempGap >= 15) {
-      warnings += `🌡️🌡️🌡️寒暖差超大注意(${tempGap.toFixed(1)}℃) `;
-      level = "danger";
-    }
-
-    if (warnings) {
-      cautionCount++;
-      const alertDiv = document.createElement('div');
-      alertDiv.className = `alert-card ${level}`;
-      alertDiv.innerHTML = `📅 ${days[d]}<br>${warnings}`;
-      futureBox.appendChild(alertDiv);
-    }
-  }
-
-  const summary = document.createElement('div');
-  summary.className = 'summary-comment';
-  if (cautionCount >= 4) {
-    summary.innerText = "⚠️ 今週は寒暖差・気圧差が大きい日が多いので注意しましょう！";
-  } else {
-    summary.innerText = "🕊 今週は比較的安定しています。";
-  }
-  futureBox.appendChild(summary);
+  });
 }
 </script>
 
