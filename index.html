@@ -35,11 +35,6 @@
       border-radius: 15px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
-    .level-image {
-      width: 80px;
-      height: auto;
-      margin: 10px 0;
-    }
     canvas {
       margin-top: 20px;
     }
@@ -133,7 +128,6 @@ async function fetchCurrentPressure(city) {
 
   const savedData = JSON.parse(localStorage.getItem("yesterdayPressure") || "null");
   let message = "";
-  let levelImage = "";
 
   if (savedData && savedData.pressure && savedData.date) {
     const savedDate = new Date(savedData.date);
@@ -146,13 +140,8 @@ async function fetchCurrentPressure(city) {
       else if (Math.abs(diff) >= 5 && Math.abs(diff) < 8) level = 2;
       else if (Math.abs(diff) >= 8) level = 3;
 
-      const levelTexts = ["🕊 安定", "😟 要注意", "😖 注意", "😫 超注意"];
+      const levelTexts = ["🕊 安定", "⚠️ 要注意", "⚠️⚠️ 注意", "⚠️⚠️⚠️ 超注意"];
       message = `昨日との差: ${diff.toFixed(1)} hPa → ${levelTexts[level]}`;
-
-      // 仮画像設定（あとで差し替えOK）
-      if (level === 1) levelImage = `<img src="https://via.placeholder.com/80x80?text=要注意" class="level-image" />`;
-      if (level === 2) levelImage = `<img src="https://via.placeholder.com/80x80?text=注意" class="level-image" />`;
-      if (level === 3) levelImage = `<img src="https://via.placeholder.com/80x80?text=超注意" class="level-image" />`;
     } else {
       message = "昨日のデータはありません。";
     }
@@ -162,7 +151,7 @@ async function fetchCurrentPressure(city) {
 
   document.getElementById("pressureInfo").innerHTML = `
     現在の気圧: ${currentPressure.toFixed(1)} hPa<br>
-    ${message}<br>${levelImage}
+    ${message}
   `;
 
   localStorage.setItem("yesterdayPressure", JSON.stringify({
@@ -173,6 +162,7 @@ async function fetchCurrentPressure(city) {
   fetchFutureForecast(city, pressures, times);
 }
 
+// --- 続き（グラフ＆未来予測）もすぐ続けて送ります！✉️
 async function fetchFutureForecast(city, pressures, times) {
   const { lat, lon } = cities[city];
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&daily=pressure_msl_max,pressure_msl_min,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`;
@@ -199,11 +189,12 @@ async function fetchFutureForecast(city, pressures, times) {
     data: {
       labels: days,
       datasets: [{
-        label: '気圧変化',
+        label: '気圧変化（hPa）',
         data: pressuresDailyMax,
         borderColor: 'blue',
         backgroundColor: 'lightblue',
-        fill: true
+        fill: true,
+        tension: 0.3
       }]
     },
     options: {
@@ -212,7 +203,7 @@ async function fetchFutureForecast(city, pressures, times) {
     }
   });
 
-  // アラート
+  // アラート生成
   for (let d = 0; d < days.length; d++) {
     const gap = pressuresDailyMax[d] - pressuresDailyMin[d];
     const tempGap = tempMax[d] - tempMin[d];
