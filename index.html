@@ -216,7 +216,7 @@ async function fetchFutureForecast(city, pressures, times) {
 
   futureBox.innerHTML = `
     <strong>未来7日間の気圧・寒暖差:</strong><br>
-    <small>🔍 この気圧差・寒暖差は、1日の中（0時〜24時）の最大値と最小値の差です。<br>
+    <small>🔍 この気圧差・寒暖差は、1日の中（0時〜24時）の最大と最小の差です。<br>
     ⚡ 気圧差4hPa以上で注意、8hPa以上で超注意<br>
     🌡️ 寒暖差7℃以上で注意、15℃以上で超注意</small><br><br>
   `;
@@ -233,6 +233,12 @@ async function fetchFutureForecast(city, pressures, times) {
 
   if (pressureChart) pressureChart.destroy();
   const ctx = document.getElementById('pressureChart').getContext('2d');
+
+  // グラデーション
+  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+  gradient.addColorStop(0, 'rgba(0, 123, 255, 0.6)');
+  gradient.addColorStop(1, 'rgba(0, 123, 255, 0.05)');
+
   pressureChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -240,15 +246,71 @@ async function fetchFutureForecast(city, pressures, times) {
       datasets: [{
         label: '気圧変化（hPa）',
         data: pressuresDailyMax,
-        borderColor: 'blue',
-        backgroundColor: 'lightblue',
+        borderColor: 'rgba(0, 123, 255, 1)',
+        backgroundColor: gradient,
         fill: true,
-        tension: 0.3
+        tension: 0.4,
+        pointRadius: 2,
+        pointHoverRadius: 6,
+        pointBackgroundColor: 'rgba(0, 123, 255, 1)'
       }]
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false
+      maintainAspectRatio: false,
+      animation: {
+        duration: 1000,
+        easing: 'easeOutQuart'
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: function(value) {
+              return value + ' hPa';
+            },
+            color: '#555',
+            font: {
+              size: 12
+            }
+          },
+          grid: {
+            color: 'rgba(200,200,200,0.2)'
+          }
+        },
+        x: {
+          ticks: {
+            color: '#555',
+            font: {
+              size: 12
+            },
+            maxRotation: 45,
+            minRotation: 45
+          },
+          grid: {
+            display: false
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: '#333',
+            font: {
+              size: 14
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          titleFont: {
+            size: 14
+          },
+          bodyFont: {
+            size: 12
+          }
+        }
+      }
     }
   });
 
@@ -282,7 +344,6 @@ async function fetchFutureForecast(city, pressures, times) {
     }
   }
 
-  // 📝 まとめコメントを最後に追加
   const summary = document.createElement('div');
   summary.className = 'summary-comment';
   if (cautionCount >= 4) {
