@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>気圧チェッカー（日時急変注意版）</title>
+  <title>気圧＆寒暖差チェッカー</title>
   <style>
     body {
       font-family: sans-serif;
@@ -34,7 +34,7 @@
   </style>
 </head>
 <body>
-  <h1>🌤 気圧チェッカー（しんどさ通知つき）</h1>
+  <h1>🌤 気圧＆寒暖差チェッカー</h1>
 
   <label for="city">都市を選択:</label>
   <select id="city">
@@ -81,7 +81,7 @@ document.getElementById("city").addEventListener("change", () => {
 
 async function fetchCurrentPressure(city) {
   const { lat, lon } = cities[city];
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&daily=pressure_msl_max,pressure_msl_min,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`;
 
   const res = await fetch(url);
   const data = await res.json();
@@ -147,20 +147,20 @@ async function fetchCurrentPressure(city) {
 
 async function fetchFutureForecast(city) {
   const { lat, lon } = cities[city];
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&daily=pressure_msl_max,pressure_msl_min&timezone=Asia%2FTokyo`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&daily=pressure_msl_max,pressure_msl_min,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`;
 
   const res = await fetch(url);
   const data = await res.json();
 
   const futureBox = document.getElementById("futureForecast");
   const alertBox = document.getElementById("alertMessage");
-  futureBox.innerHTML = "<strong>未来7日間の気圧変動:</strong><br>";
+  futureBox.innerHTML = "<strong>未来7日間の気圧・寒暖差変動:</strong><br>";
   alertBox.innerHTML = "";
 
   const pressures = data.hourly.pressure_msl;
   const times = data.hourly.time.map(t => new Date(t));
 
-  // --- 急変パターン検出（未来24時間内） ---
+  // 急変パターン検出（未来24時間内）
   for (let i = 0; i < pressures.length - 2; i++) {
     const first = pressures[i];
     const mid = pressures[i + 1];
@@ -175,14 +175,33 @@ async function fetchFutureForecast(city) {
     }
   }
 
+  // 気圧差と寒暖差チェック（1週間分）
   const maxes = data.daily.pressure_msl_max;
   const mins = data.daily.pressure_msl_min;
+  const tempMaxes = data.daily.temperature_2m_max;
+  const tempMins = data.daily.temperature_2m_min;
   const days = data.daily.time;
 
   for (let d = 0; d < days.length; d++) {
     const gap = maxes[d] - mins[d];
+    const tempGap = tempMaxes[d] - tempMins[d];
+
+    let warnings = "";
+
     if (Math.abs(gap) >= 4) {
-      futureBox.innerHTML += `📅 ${days[d]}: 気圧差 ${gap.toFixed(1)} hPa → 注意！<br>`;
+      warnings += `🌀 気圧差${gap.toFixed(1)}hPa注意 `;
+    }
+
+    if (tempGap >= 7 && tempGap < 10) {
+      warnings += `🌡️ 寒暖差注意(${tempGap.toFixed(1)}℃) `;
+    } else if (tempGap >= 10 && tempGap < 15) {
+      warnings += `🌡️🌡️ 寒暖差大注意(${tempGap.toFixed(1)}℃) `;
+    } else if (tempGap >= 15) {
+      warnings += `🌡️🌡️🌡️ 寒暖差超大注意(${tempGap.toFixed(1)}℃) `;
+    }
+
+    if (warnings) {
+      futureBox.innerHTML += `📅 ${days[d]}: ${warnings}<br>`;
     }
   }
 }
