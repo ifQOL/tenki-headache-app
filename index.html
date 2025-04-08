@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>気圧チェッカー（localStorage版）</title>
+  <title>気圧チェッカー（localStorage版・安定版）</title>
   <style>
     body {
       font-family: sans-serif;
@@ -90,7 +90,7 @@ async function fetchCurrentPressure(city) {
   const times = data.hourly.time.map(t => new Date(t));
 
   const now = new Date();
-  let closestIndex = 0;
+  let closestIndex = -1;
   let minDiff = Infinity;
 
   for (let i = 0; i < times.length; i++) {
@@ -101,9 +101,13 @@ async function fetchCurrentPressure(city) {
     }
   }
 
+  if (closestIndex === -1 || pressures[closestIndex] == null) {
+    document.getElementById("pressureInfo").innerHTML = "⚠️ 現在の気圧データが取得できませんでした。";
+    return;
+  }
+
   const currentPressure = pressures[closestIndex];
 
-  // 昨日のデータがあるかチェック
   const savedData = JSON.parse(localStorage.getItem("yesterdayPressure") || "null");
   let message = "";
 
@@ -111,7 +115,6 @@ async function fetchCurrentPressure(city) {
     const savedDate = new Date(savedData.date);
     const today = new Date();
 
-    // 保存した日付が昨日なら比較
     if (today.getDate() - savedDate.getDate() === 1 ||
         (savedDate.getDate() === new Date(today.getFullYear(), today.getMonth(), 0).getDate() && today.getDate() === 1)) {
       const diff = currentPressure - savedData.pressure;
@@ -134,7 +137,6 @@ async function fetchCurrentPressure(city) {
     ${message}
   `;
 
-  // 今日のデータを保存（上書き）
   localStorage.setItem("yesterdayPressure", JSON.stringify({
     pressure: currentPressure,
     date: now.toISOString()
@@ -182,6 +184,5 @@ async function fetchFutureForecast(city) {
   }
 }
 </script>
-
 </body>
 </html>
