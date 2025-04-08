@@ -1,174 +1,148 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>気圧と体調チェック</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>気圧チェッカー</title>
   <style>
     body {
       font-family: sans-serif;
-      text-align: center;
-      background: #f0f8ff;
       padding: 20px;
+      background: #f0f8ff;
     }
     h1 {
-      color: #336699;
+      color: #333;
+      margin-bottom: 10px;
     }
-    .button-group {
-      margin: 20px 0;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
+    select, button {
+      font-size: 1em;
+      padding: 6px 12px;
+      margin-top: 10px;
     }
-    button {
-      padding: 8px 16px;
-      font-size: 14px;
-      cursor: pointer;
-      background: #336699;
-      color: white;
-      border: none;
-      border-radius: 5px;
-    }
-    .box {
+    .info, .alerts, .forecast {
       margin-top: 20px;
-      padding: 15px;
-      background: white;
+      padding: 10px;
+      background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 8px rgba(0,0,0,0.1);
     }
+    .level-1 { background: #fff6e5; }
+    .level-2 { background: #ffe5e5; }
+    .level-3 { background: #ffd2d2; font-weight: bold; }
+    .level-0 { background: #e5f9ff; }
   </style>
 </head>
 <body>
-  <h1>気圧と体調チェック</h1>
-  <div class="button-group" id="city-buttons"></div>
-  <div class="box" id="pressure-box">都市を選んでください</div>
-  <div class="box" id="alert-box"></div>
-  <div class="box" id="forecast-box"></div>
-  <div class="box" id="history-box"></div>
+  <h1>🌤 気圧チェッカー（しんどさ通知つき）</h1>
 
-  <script>
-    const cities = {
-      "札幌": { lat: 43.0642, lon: 141.3469 },
-      "仙台": { lat: 38.2688, lon: 140.8721 },
-      "新潟": { lat: 37.9026, lon: 139.0236 },
-      "東京": { lat: 35.6895, lon: 139.6917 },
-      "埼玉": { lat: 35.8617, lon: 139.6455 },
-      "神奈川": { lat: 35.4478, lon: 139.6425 },
-      "金沢": { lat: 36.5613, lon: 136.6562 },
-      "名古屋": { lat: 35.1815, lon: 136.9066 },
-      "大阪": { lat: 34.6937, lon: 135.5023 },
-      "広島": { lat: 34.3853, lon: 132.4553 },
-      "高知": { lat: 33.5597, lon: 133.5311 },
-      "福岡": { lat: 33.5902, lon: 130.4017 },
-      "那覇": { lat: 26.2124, lon: 127.6809 }
-    };
+  <label for="city">都市を選択:</label>
+  <select id="city">
+    <option value="Sapporo">札幌</option>
+    <option value="Sendai">仙台</option>
+    <option value="Niigata">新潟</option>
+    <option value="Tokyo">東京</option>
+    <option value="Kanazawa">金沢</option>
+    <option value="Nagoya">名古屋</option>
+    <option value="Osaka">大阪</option>
+    <option value="Hiroshima">広島</option>
+    <option value="Kochi">高知</option>
+    <option value="Fukuoka">福岡</option>
+    <option value="Naha">那覇</option>
+    <option value="Saitama">埼玉</option>
+    <option value="Kanagawa">神奈川</option>
+  </select>
 
-    const pressureBox = document.getElementById("pressure-box");
-    const alertBox = document.getElementById("alert-box");
-    const forecastBox = document.getElementById("forecast-box");
-    const historyBox = document.getElementById("history-box");
+  <div class="info" id="pressureInfo">⏳ データ取得中...</div>
+  <div class="alerts" id="alertMessage"></div>
+  <div class="forecast" id="futureForecast"></div>
+<script>
+const cities = {
+  Sapporo: { lat: 43.0642, lon: 141.3469 },
+  Sendai: { lat: 38.2688, lon: 140.8721 },
+  Niigata: { lat: 37.9026, lon: 139.0236 },
+  Tokyo: { lat: 35.6895, lon: 139.6917 },
+  Kanazawa: { lat: 36.5613, lon: 136.6562 },
+  Nagoya: { lat: 35.1815, lon: 136.9066 },
+  Osaka: { lat: 34.6937, lon: 135.5023 },
+  Hiroshima: { lat: 34.3853, lon: 132.4553 },
+  Kochi: { lat: 33.5597, lon: 133.5311 },
+  Fukuoka: { lat: 33.5904, lon: 130.4017 },
+  Naha: { lat: 26.2124, lon: 127.6809 },
+  Saitama: { lat: 35.8617, lon: 139.6455 },
+  Kanagawa: { lat: 35.4478, lon: 139.6425 }
+};
 
-    Object.keys(cities).forEach(city => {
-      const btn = document.createElement("button");
-      btn.innerText = city;
-      btn.onclick = () => fetchPressure(city);
-      document.getElementById("city-buttons").appendChild(btn);
-    });
+document.getElementById("city").addEventListener("change", () => {
+  const city = document.getElementById("city").value;
+  fetchPressure(city);
+});
 
-    async function fetchPressure(city) {
-      const { lat, lon } = cities[city];
-      const now = new Date();
-      const nowISO = now.toISOString();
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
+async function fetchPressure(city) {
+  const { lat, lon } = cities[city];
+  const today = new Date();
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 1);
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + 7);
 
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const times = data.hourly.time;
-        const pressures = data.hourly.pressure_msl;
-        const nowIndex = times.findIndex(t => new Date(t) > now);
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate.toISOString().split("T")[0]}&end_date=${endDate.toISOString().split("T")[0]}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
+  const res = await fetch(url);
+  const data = await res.json();
 
-        const currentPressure = pressures[nowIndex];
-        const pastPressure = pressures[nowIndex - 3];
-        const diff = currentPressure - pastPressure;
+  const pressure = data.hourly.pressure_msl;
+  const time = data.hourly.time;
 
-        const nowTime = new Date(times[nowIndex]).toLocaleString("ja-JP");
-        const alertMessage = Math.abs(diff) >= 3
-          ? `⚠️ 気圧が ${diff.toFixed(1)} hPa 変化しています。体調に注意してください。`
-          : "現在の気圧変化は安定しています。";
+  const now = new Date();
+  const currentIndex = time.findIndex(t => t === now.toISOString().slice(0, 13) + ":00");
+  const currentPressure = pressure[currentIndex];
+  const yesterdayPressure = pressure[currentIndex - 24];
 
-        pressureBox.innerHTML = `<strong>${city}</strong> の<br><strong>${nowTime}</strong> の気圧は<br><span style="font-size: 1.5em;">${currentPressure} hPa</span> です。`;
-        alertBox.innerText = alertMessage;
+  // 今との差でレベル判定
+  const diff = Math.abs(currentPressure - yesterdayPressure);
+  let level = 0;
+  if (diff >= 2 && diff < 5) level = 1;
+  else if (diff >= 5 && diff < 8) level = 2;
+  else if (diff >= 8) level = 3;
 
-        checkFuturePressure(city);
-        compareWithYesterday(city);
+  const info = document.getElementById("pressureInfo");
+  info.className = `info level-${level}`;
+  const levelTexts = ["🕊 安定", "😟 しんどいかも", "😖 しんどい", "😫 超しんどい"];
+  info.innerHTML = `現在の気圧: ${currentPressure.toFixed(1)} hPa<br>昨日との差: ${diff.toFixed(1)} hPa → ${levelTexts[level]}`;
+  const alert = document.getElementById("alertMessage");
+  const future = document.getElementById("futureForecast");
 
-      } catch (e) {
-        pressureBox.innerText = "データ取得に失敗しました。";
-        console.error(e);
-      }
+  // 急激な反転（V字・逆V字）検出
+  alert.innerHTML = "";
+  for (let i = currentIndex; i < currentIndex + 24; i++) {
+    if (i + 2 >= pressure.length) break;
+    const first = pressure[i];
+    const mid = pressure[i + 1];
+    const last = pressure[i + 2];
+
+    if ((first > mid && mid < last) || (first < mid && mid > last)) {
+      const t1 = new Date(time[i]).toLocaleString("ja-JP", { hour: '2-digit', hour12: false });
+      const t3 = new Date(time[i+2]).toLocaleString("ja-JP", { hour: '2-digit', hour12: false });
+      alert.innerHTML = `⚡ 急変注意：${t1}時〜${t3}時に気圧が大きく反転します！`;
+      break;
     }
+  }
 
-    async function checkFuturePressure(city) {
-      const { lat, lon } = cities[city];
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=pressure_msl_max,pressure_msl_min&timezone=Asia%2FTokyo`;
+  // 未来7日分の日ごとの最大・最小差を計算
+  future.innerHTML = "<strong>未来7日間の気圧変動:</strong><br>";
+  const futurePressures = pressure.slice(currentIndex, currentIndex + 7*24);
+  for (let d = 0; d < 7; d++) {
+    const dayData = futurePressures.slice(d*24, (d+1)*24);
+    if (dayData.length < 24) continue;
+    const max = Math.max(...dayData);
+    const min = Math.min(...dayData);
+    const gap = max - min;
+    const date = new Date(time[currentIndex + d*24]).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit" });
 
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const maxes = data.daily.pressure_msl_max;
-        const mins = data.daily.pressure_msl_min;
-        const days = data.daily.time;
-
-        forecastBox.innerHTML = "";
-
-        for (let i = 0; i < days.length; i++) {
-          const diff = maxes[i] - mins[i];
-          if (Math.abs(diff) >= 4) {
-            forecastBox.innerHTML += `🔮 ${days[i]} に ${diff.toFixed(1)} hPa の気圧差があります。<br>`;
-          }
-        }
-
-        if (!forecastBox.innerHTML) {
-          forecastBox.innerText = "🕊 今後1週間に大きな気圧変化の予報はありません。";
-        }
-      } catch (e) {
-        forecastBox.innerText = "予報取得に失敗しました。";
-        console.error(e);
-      }
+    if (Math.abs(gap) >= 4) {
+      future.innerHTML += `📅 ${date}: 気圧差 ${gap.toFixed(1)} hPa → 注意！<br>`;
     }
-
-    async function compareWithYesterday(city) {
-      const { lat, lon } = cities[city];
-      const now = new Date();
-      const yesterday = new Date(now);
-      yesterday.setDate(now.getDate() - 1);
-      const start = yesterday.toISOString().split("T")[0];
-      const end = now.toISOString().split("T")[0];
-
-      const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&hourly=pressure_msl&timezone=Asia%2FTokyo`;
-
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const times = data.hourly.time;
-        const pressures = data.hourly.pressure_msl;
-
-        const sameHour = now.getHours();
-        const sameTimeIndex = times.findIndex(t => new Date(t).getHours() === sameHour);
-
-        if (sameTimeIndex !== -1) {
-          const yPressure = pressures[sameTimeIndex];
-          const diff = pressureBox.innerText.includes("hPa") ? parseFloat(pressureBox.innerText.match(/([\d\.]+) hPa/)[1]) - yPressure : 0;
-          historyBox.innerText = `昨日の同時刻と比べて ${diff.toFixed(1)} hPa ${diff >= 0 ? "上昇" : "低下"}しています。`;
-        } else {
-          historyBox.innerText = "昨日の同時刻の気圧データが見つかりませんでした。";
-        }
-      } catch (e) {
-        historyBox.innerText = "昨日との比較に失敗しました。";
-        console.error(e);
-      }
-    }
-  </script>
+  }
+}
+</script>
 </body>
 </html>
