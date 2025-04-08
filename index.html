@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>気圧＆寒暖差チェッカー</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   <style>
     body {
       margin: 0;
@@ -82,34 +81,13 @@
     canvas {
       margin-top: 20px;
     }
-
-    /* スマホ対応 */
     @media (max-width: 600px) {
-      h1 {
-        font-size: 1.6rem;
-        margin-top: 20px;
-      }
-      select, button {
-        font-size: 1rem;
-        padding: 8px 12px;
-      }
-      .card {
-        width: 95%;
-        padding: 15px;
-        margin: 10px auto;
-      }
-      .alert-card {
-        font-size: 0.9rem;
-        padding: 8px;
-      }
-      .summary-comment {
-        font-size: 1rem;
-        margin-top: 10px;
-      }
-      canvas {
-        width: 100% !important;
-        height: auto !important;
-      }
+      h1 { font-size: 1.6rem; margin-top: 20px; }
+      select, button { font-size: 1rem; padding: 8px 12px; }
+      .card { width: 95%; padding: 15px; margin: 10px auto; }
+      .alert-card { font-size: 0.9rem; padding: 8px; }
+      .summary-comment { font-size: 1rem; margin-top: 10px; }
+      canvas { width: 100% !important; height: auto !important; }
     }
   </style>
 </head>
@@ -179,20 +157,36 @@ async function fetchCurrentPressure(city) {
   const times = data.hourly.time.map(t => new Date(t));
 
   const now = new Date();
-  let closestIndex = -1;
-  let minDiff = Infinity;
+  const todayStr = now.toISOString().split("T")[0]; // 今日の日付（YYYY-MM-DD）
+
+  let todayPressures = [];
+  let todayHours = [];
+
   for (let i = 0; i < times.length; i++) {
-    const diffMs = Math.abs(now - times[i]);
-    if (diffMs < minDiff) {
-      minDiff = diffMs;
-      closestIndex = i;
+    if (times[i].toISOString().startsWith(todayStr)) {
+      todayPressures.push(pressures[i]);
+      todayHours.push(times[i].getHours());
     }
   }
 
-  const currentPressure = pressures[closestIndex];
-  document.getElementById("pressureInfo").innerHTML = `
-    現在の気圧: ${currentPressure.toFixed(1)} hPa
-  `;
+  // 辛い時間帯の検出
+  let start = null;
+  let end = null;
+  for (let i = 1; i < todayPressures.length; i++) {
+    if (todayPressures[i] < todayPressures[i - 1]) {
+      if (start === null) start = todayHours[i - 1];
+      end = todayHours[i];
+    }
+  }
+
+  let pressureInfo = `現在の気圧: ${todayPressures[0].toFixed(1)} hPa<br>`;
+  if (start !== null && end !== null && start !== end) {
+    pressureInfo += `🌪 本日${start}時〜${end}時ごろが気圧変化のピークかも！`;
+  } else {
+    pressureInfo += `🕊 本日は大きな気圧変化はなさそうです。`;
+  }
+
+  document.getElementById("pressureInfo").innerHTML = pressureInfo;
 
   fetchFutureForecast(city);
 }
@@ -289,6 +283,7 @@ async function fetchFutureForecast(city) {
     : "🕊 今週は比較的安定しています。";
   futureBox.appendChild(summary);
 }
+
 </script>
 
 </body>
