@@ -4,15 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>気圧＆寒暖差チェッカー</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js追加 -->
   <style>
     body {
-      font-family: sans-serif;
-      padding: 20px;
-      background: #f0f8ff;
+      margin: 0;
+      font-family: 'Helvetica Neue', sans-serif;
+      background: linear-gradient(to top, #a8e6cf 40%, #dcedc1 100%), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?fit=crop&w=1600&q=80') no-repeat center center fixed;
+      background-size: cover;
+      min-height: 100vh;
+      color: #333;
       text-align: center;
     }
     h1 {
-      color: #336699;
+      margin-top: 30px;
+      color: #2c6e91;
+      text-shadow: 1px 1px 2px #fff;
     }
     select, button {
       margin: 10px;
@@ -20,44 +26,60 @@
       font-size: 1rem;
       border-radius: 8px;
     }
-    .info, .alerts, .forecast {
-      margin: 20px 0;
-      padding: 15px;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    .card {
+      background: rgba(255,255,255,0.9);
+      margin: 20px auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
-    .level-0 { background: #e0f7fa; }
-    .level-1 { background: #fff8e1; }
-    .level-2 { background: #ffe0b2; }
-    .level-3 { background: #ffcdd2; font-weight: bold; }
+    .level-image {
+      width: 80px;
+      height: auto;
+      margin: 10px 0;
+    }
+    canvas {
+      margin-top: 20px;
+    }
   </style>
 </head>
+
 <body>
   <h1>🌤 気圧＆寒暖差チェッカー</h1>
 
-  <label for="city">都市を選択:</label>
-  <select id="city">
-    <option value="Sapporo">札幌</option>
-    <option value="Sendai">仙台</option>
-    <option value="Niigata">新潟</option>
-    <option value="Tokyo">東京</option>
-    <option value="Kanazawa">金沢</option>
-    <option value="Nagoya">名古屋</option>
-    <option value="Osaka">大阪</option>
-    <option value="Hiroshima">広島</option>
-    <option value="Kochi">高知</option>
-    <option value="Fukuoka">福岡</option>
-    <option value="Naha">那覇</option>
-    <option value="Saitama">埼玉</option>
-    <option value="Kanagawa">神奈川</option>
-  </select>
+  <div class="card">
+    <label for="city">都市を選択:</label>
+    <select id="city">
+      <option value="Sapporo">札幌</option>
+      <option value="Sendai">仙台</option>
+      <option value="Niigata">新潟</option>
+      <option value="Tokyo">東京</option>
+      <option value="Kanazawa">金沢</option>
+      <option value="Nagoya">名古屋</option>
+      <option value="Osaka">大阪</option>
+      <option value="Hiroshima">広島</option>
+      <option value="Kochi">高知</option>
+      <option value="Fukuoka">福岡</option>
+      <option value="Naha">那覇</option>
+      <option value="Saitama">埼玉</option>
+      <option value="Kanagawa">神奈川</option>
+    </select>
+  </div>
 
-  <div class="info" id="pressureInfo">⏳ データ取得中...</div>
-  <div class="alerts" id="alertMessage"></div>
-  <div class="forecast" id="futureForecast"></div>
+  <div class="card" id="pressureInfo">⏳ データ取得中...</div>
+
+  <div class="card" id="alertMessage"></div>
+
+  <div class="card" id="futureForecast"></div>
+
+  <div class="card">
+    <canvas id="pressureChart" width="400" height="200"></canvas>
+  </div>
 
 <script>
+// --- データ設定 ---
 const cities = {
   Sapporo: { lat: 43.0642, lon: 141.3469 },
   Sendai: { lat: 38.2688, lon: 140.8721 },
@@ -74,6 +96,8 @@ const cities = {
   Kanagawa: { lat: 35.4478, lon: 139.6425 }
 };
 
+let pressureChart;
+
 document.getElementById("city").addEventListener("change", () => {
   const city = document.getElementById("city").value;
   fetchCurrentPressure(city);
@@ -88,11 +112,10 @@ async function fetchCurrentPressure(city) {
 
   const pressures = data.hourly.pressure_msl;
   const times = data.hourly.time.map(t => new Date(t));
-
+  
   const now = new Date();
   let closestIndex = -1;
   let minDiff = Infinity;
-
   for (let i = 0; i < times.length; i++) {
     const diffMs = Math.abs(now - times[i]);
     if (diffMs < minDiff) {
@@ -110,11 +133,11 @@ async function fetchCurrentPressure(city) {
 
   const savedData = JSON.parse(localStorage.getItem("yesterdayPressure") || "null");
   let message = "";
+  let levelImage = "";
 
   if (savedData && savedData.pressure && savedData.date) {
     const savedDate = new Date(savedData.date);
     const today = new Date();
-
     if (today.getDate() - savedDate.getDate() === 1 ||
         (savedDate.getDate() === new Date(today.getFullYear(), today.getMonth(), 0).getDate() && today.getDate() === 1)) {
       const diff = currentPressure - savedData.pressure;
@@ -123,8 +146,13 @@ async function fetchCurrentPressure(city) {
       else if (Math.abs(diff) >= 5 && Math.abs(diff) < 8) level = 2;
       else if (Math.abs(diff) >= 8) level = 3;
 
-      const levelTexts = ["🕊 安定", "😟 しんどいかも", "😖 しんどい", "😫 超しんどい"];
+      const levelTexts = ["🕊 安定", "😟 要注意", "😖 注意", "😫 超注意"];
       message = `昨日との差: ${diff.toFixed(1)} hPa → ${levelTexts[level]}`;
+
+      // 仮画像設定（あとで差し替えOK）
+      if (level === 1) levelImage = `<img src="https://via.placeholder.com/80x80?text=要注意" class="level-image" />`;
+      if (level === 2) levelImage = `<img src="https://via.placeholder.com/80x80?text=注意" class="level-image" />`;
+      if (level === 3) levelImage = `<img src="https://via.placeholder.com/80x80?text=超注意" class="level-image" />`;
     } else {
       message = "昨日のデータはありません。";
     }
@@ -134,7 +162,7 @@ async function fetchCurrentPressure(city) {
 
   document.getElementById("pressureInfo").innerHTML = `
     現在の気圧: ${currentPressure.toFixed(1)} hPa<br>
-    ${message}
+    ${message}<br>${levelImage}
   `;
 
   localStorage.setItem("yesterdayPressure", JSON.stringify({
@@ -142,10 +170,10 @@ async function fetchCurrentPressure(city) {
     date: now.toISOString()
   }));
 
-  fetchFutureForecast(city);
+  fetchFutureForecast(city, pressures, times);
 }
 
-async function fetchFutureForecast(city) {
+async function fetchFutureForecast(city, pressures, times) {
   const { lat, lon } = cities[city];
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&daily=pressure_msl_max,pressure_msl_min,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`;
 
@@ -154,50 +182,52 @@ async function fetchFutureForecast(city) {
 
   const futureBox = document.getElementById("futureForecast");
   const alertBox = document.getElementById("alertMessage");
-  futureBox.innerHTML = "<strong>未来7日間の気圧・寒暖差変動:</strong><br>";
+  futureBox.innerHTML = "<strong>未来7日間の気圧・寒暖差:</strong><br>";
   alertBox.innerHTML = "";
 
-  const pressures = data.hourly.pressure_msl;
-  const times = data.hourly.time.map(t => new Date(t));
-
-  // 急変パターン検出（未来24時間内）
-  for (let i = 0; i < pressures.length - 2; i++) {
-    const first = pressures[i];
-    const mid = pressures[i + 1];
-    const last = pressures[i + 2];
-    if ((first > mid && mid < last) || (first < mid && mid > last)) {
-      const t1 = times[i];
-      const t3 = times[i + 2];
-      const t1str = `${t1.getMonth() + 1}月${t1.getDate()}日${t1.getHours()}時`;
-      const t3str = `${t3.getMonth() + 1}月${t3.getDate()}日${t3.getHours()}時`;
-      alertBox.innerHTML = `⚡ 急変注意：${t1str}〜${t3str} に気圧反転の可能性あり！`;
-      break;
-    }
-  }
-
-  // 気圧差と寒暖差チェック（1週間分）
-  const maxes = data.daily.pressure_msl_max;
-  const mins = data.daily.pressure_msl_min;
-  const tempMaxes = data.daily.temperature_2m_max;
-  const tempMins = data.daily.temperature_2m_min;
+  const pressuresDailyMax = data.daily.pressure_msl_max;
+  const pressuresDailyMin = data.daily.pressure_msl_min;
+  const tempMax = data.daily.temperature_2m_max;
+  const tempMin = data.daily.temperature_2m_min;
   const days = data.daily.time;
 
+  // グラフ描画
+  if (pressureChart) pressureChart.destroy();
+  const ctx = document.getElementById('pressureChart').getContext('2d');
+  pressureChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [{
+        label: '気圧変化',
+        data: pressuresDailyMax,
+        borderColor: 'blue',
+        backgroundColor: 'lightblue',
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+
+  // アラート
   for (let d = 0; d < days.length; d++) {
-    const gap = maxes[d] - mins[d];
-    const tempGap = tempMaxes[d] - tempMins[d];
+    const gap = pressuresDailyMax[d] - pressuresDailyMin[d];
+    const tempGap = tempMax[d] - tempMin[d];
 
     let warnings = "";
 
     if (Math.abs(gap) >= 4) {
-      warnings += `🌀 気圧差${gap.toFixed(1)}hPa注意 `;
+      warnings += `🌀 気圧差${gap.toFixed(1)}hPa `;
     }
-
     if (tempGap >= 7 && tempGap < 10) {
-      warnings += `🌡️ 寒暖差注意(${tempGap.toFixed(1)}℃) `;
+      warnings += `🌡️寒暖差注意(${tempGap.toFixed(1)}℃) `;
     } else if (tempGap >= 10 && tempGap < 15) {
-      warnings += `🌡️🌡️ 寒暖差大注意(${tempGap.toFixed(1)}℃) `;
+      warnings += `🌡️🌡️寒暖差大注意(${tempGap.toFixed(1)}℃) `;
     } else if (tempGap >= 15) {
-      warnings += `🌡️🌡️🌡️ 寒暖差超大注意(${tempGap.toFixed(1)}℃) `;
+      warnings += `🌡️🌡️🌡️寒暖差超大注意(${tempGap.toFixed(1)}℃) `;
     }
 
     if (warnings) {
@@ -206,6 +236,5 @@ async function fetchFutureForecast(city) {
   }
 }
 </script>
-
 </body>
 </html>
