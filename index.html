@@ -157,7 +157,7 @@ async function fetchCurrentPressure(city) {
   const times = data.hourly.time.map(t => new Date(t));
 
   const now = new Date();
-  const todayStr = now.toISOString().split("T")[0]; // 今日の日付（YYYY-MM-DD）
+  const todayStr = now.toISOString().split("T")[0];
 
   let todayPressures = [];
   let todayHours = [];
@@ -169,7 +169,6 @@ async function fetchCurrentPressure(city) {
     }
   }
 
-  // 辛い時間帯の検出
   let start = null;
   let end = null;
   for (let i = 1; i < todayPressures.length; i++) {
@@ -253,17 +252,22 @@ async function fetchFutureForecast(city) {
     let warning = "";
     let level = "";
 
-    if (Math.abs(pressureGap) >= 4) {
-      warning += `🌀 気圧差${pressureGap.toFixed(1)}hPa `;
-    }
-    if (tempGap >= 7 && tempGap < 10) {
-      warning += `🌡️寒暖差注意(${tempGap.toFixed(1)}℃) `;
+    if (Math.abs(pressureGap) >= 4 && Math.abs(pressureGap) < 8) {
+      warning += `🌀 気圧差注意(${pressureGap.toFixed(1)}hPa) `;
       level = "caution";
-    } else if (tempGap >= 10 && tempGap < 15) {
-      warning += `🌡️🌡️寒暖差大注意(${tempGap.toFixed(1)}℃) `;
+    } else if (Math.abs(pressureGap) >= 8) {
+      warning += `🌀🌀 気圧差超注意(${pressureGap.toFixed(1)}hPa) `;
       level = "warning";
+    }
+
+    if (tempGap >= 7 && tempGap < 10) {
+      warning += `🌡️ 寒暖差注意(${tempGap.toFixed(1)}℃) `;
+      if (!level) level = "caution";
+    } else if (tempGap >= 10 && tempGap < 15) {
+      warning += `🌡️🌡️ 寒暖差大注意(${tempGap.toFixed(1)}℃) `;
+      if (!level) level = "warning";
     } else if (tempGap >= 15) {
-      warning += `🌡️🌡️🌡️寒暖差超大注意(${tempGap.toFixed(1)}℃) `;
+      warning += `🌡️🌡️🌡️ 寒暖差超大注意(${tempGap.toFixed(1)}℃) `;
       level = "danger";
     }
 
@@ -283,7 +287,6 @@ async function fetchFutureForecast(city) {
     : "🕊 今週は比較的安定しています。";
   futureBox.appendChild(summary);
 }
-
 </script>
 
 </body>
