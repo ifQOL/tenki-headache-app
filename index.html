@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>気圧＆寒暖差チェッカー</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js追加 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js読み込み -->
   <style>
     body {
       margin: 0;
@@ -34,6 +34,36 @@
       max-width: 600px;
       border-radius: 15px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .alert-card {
+      background: #fff;
+      margin: 10px auto;
+      padding: 10px;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      text-align: left;
+      font-size: 1rem;
+      transition: all 0.5s ease;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeIn 0.8s forwards;
+    }
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .alert-card.caution {
+      background: #fff9c4; /* 薄い黄色 注意 */
+    }
+    .alert-card.warning {
+      background: #ffe0b2; /* 薄いオレンジ 大注意 */
+    }
+    .alert-card.danger {
+      background: #ffccbc; /* 薄い赤 超大注意 */
     }
     canvas {
       margin-top: 20px;
@@ -74,7 +104,7 @@
   </div>
 
 <script>
-// --- データ設定 ---
+// 都市リスト
 const cities = {
   Sapporo: { lat: 43.0642, lon: 141.3469 },
   Sendai: { lat: 38.2688, lon: 140.8721 },
@@ -162,7 +192,6 @@ async function fetchCurrentPressure(city) {
   fetchFutureForecast(city, pressures, times);
 }
 
-// --- 続き（グラフ＆未来予測）もすぐ続けて送ります！✉️
 async function fetchFutureForecast(city, pressures, times) {
   const { lat, lon } = cities[city];
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&daily=pressure_msl_max,pressure_msl_min,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`;
@@ -181,7 +210,6 @@ async function fetchFutureForecast(city, pressures, times) {
   const tempMin = data.daily.temperature_2m_min;
   const days = data.daily.time;
 
-  // グラフ描画
   if (pressureChart) pressureChart.destroy();
   const ctx = document.getElementById('pressureChart').getContext('2d');
   pressureChart = new Chart(ctx, {
@@ -203,26 +231,32 @@ async function fetchFutureForecast(city, pressures, times) {
     }
   });
 
-  // アラート生成
   for (let d = 0; d < days.length; d++) {
     const gap = pressuresDailyMax[d] - pressuresDailyMin[d];
     const tempGap = tempMax[d] - tempMin[d];
 
     let warnings = "";
+    let level = "";
 
     if (Math.abs(gap) >= 4) {
       warnings += `🌀 気圧差${gap.toFixed(1)}hPa `;
     }
     if (tempGap >= 7 && tempGap < 10) {
       warnings += `🌡️寒暖差注意(${tempGap.toFixed(1)}℃) `;
+      level = "caution";
     } else if (tempGap >= 10 && tempGap < 15) {
       warnings += `🌡️🌡️寒暖差大注意(${tempGap.toFixed(1)}℃) `;
+      level = "warning";
     } else if (tempGap >= 15) {
       warnings += `🌡️🌡️🌡️寒暖差超大注意(${tempGap.toFixed(1)}℃) `;
+      level = "danger";
     }
 
     if (warnings) {
-      futureBox.innerHTML += `📅 ${days[d]}: ${warnings}<br>`;
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert-card ${level}`;
+      alertDiv.innerHTML = `📅 ${days[d]}<br>${warnings}`;
+      futureBox.appendChild(alertDiv);
     }
   }
 }
