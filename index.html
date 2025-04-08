@@ -231,88 +231,88 @@ async function fetchFutureForecast(city, pressures, times) {
 
   let cautionCount = 0;
 
-  if (pressureChart) pressureChart.destroy();
-  const ctx = document.getElementById('pressureChart').getContext('2d');
+ if (pressureChart) pressureChart.destroy();
+const ctx = document.getElementById('pressureChart').getContext('2d');
 
-  // グラデーション
-  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-  gradient.addColorStop(0, 'rgba(0, 123, 255, 0.6)');
-  gradient.addColorStop(1, 'rgba(0, 123, 255, 0.05)');
+// ここでグラデーションを作る
+const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+gradient.addColorStop(0, 'rgba(0, 123, 255, 0.6)'); // 上の色（濃い水色）
+gradient.addColorStop(1, 'rgba(0, 123, 255, 0.05)'); // 下の色（超薄い水色）
 
-  pressureChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: days,
-      datasets: [{
-        label: '気圧変化（hPa）',
-        data: pressuresDailyMax,
-        borderColor: 'rgba(0, 123, 255, 1)',
-        backgroundColor: gradient,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 2,
-        pointHoverRadius: 6,
-        pointBackgroundColor: 'rgba(0, 123, 255, 1)'
-      }]
+pressureChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: days,
+    datasets: [{
+      label: '気圧変化（hPa）',
+      data: pressuresDailyMax,
+      borderColor: 'rgba(0, 123, 255, 1)', // 線の色
+      backgroundColor: gradient, // ここにグラデーションを渡す
+      fill: true, // 線の下を塗りつぶす
+      tension: 0.4, // なめらかカーブ
+      pointRadius: 2,
+      pointHoverRadius: 6,
+      pointBackgroundColor: 'rgba(0, 123, 255, 1)'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 1000,
+      easing: 'easeOutQuart'
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: {
-        duration: 1000,
-        easing: 'easeOutQuart'
-      },
-      scales: {
-        y: {
-          ticks: {
-            callback: function(value) {
-              return value + ' hPa';
-            },
-            color: '#555',
-            font: {
-              size: 12
-            }
+    scales: {
+      y: {
+        ticks: {
+          callback: function(value) {
+            return value + ' hPa';
           },
-          grid: {
-            color: 'rgba(200,200,200,0.2)'
+          color: '#555',
+          font: {
+            size: 12
           }
         },
-        x: {
-          ticks: {
-            color: '#555',
-            font: {
-              size: 12
-            },
-            maxRotation: 45,
-            minRotation: 45
+        grid: {
+          color: 'rgba(200,200,200,0.2)'
+        }
+      },
+      x: {
+        ticks: {
+          color: '#555',
+          font: {
+            size: 12
           },
-          grid: {
-            display: false
+          maxRotation: 45,
+          minRotation: 45
+        },
+        grid: {
+          display: false
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          color: '#333',
+          font: {
+            size: 14
           }
         }
       },
-      plugins: {
-        legend: {
-          display: true,
-          labels: {
-            color: '#333',
-            font: {
-              size: 14
-            }
-          }
+      tooltip: {
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        titleFont: {
+          size: 14
         },
-        tooltip: {
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          titleFont: {
-            size: 14
-          },
-          bodyFont: {
-            size: 12
-          }
+        bodyFont: {
+          size: 12
         }
       }
     }
-  });
+  }
+});
 
   for (let d = 0; d < days.length; d++) {
     const gap = pressuresDailyMax[d] - pressuresDailyMin[d];
