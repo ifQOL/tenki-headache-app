@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>気圧＆寒暖差チェッカー</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       margin: 0;
@@ -57,13 +57,13 @@
       }
     }
     .alert-card.caution {
-      background: #fff9c4; /* 薄い黄色 注意 */
+      background: #fff9c4;
     }
     .alert-card.warning {
-      background: #ffe0b2; /* 薄いオレンジ 大注意 */
+      background: #ffe0b2;
     }
     .alert-card.danger {
-      background: #ffccbc; /* 薄い赤 超大注意 */
+      background: #ffccbc;
     }
     canvas {
       margin-top: 20px;
@@ -104,7 +104,6 @@
   </div>
 
 <script>
-// 都市リスト
 const cities = {
   Sapporo: { lat: 43.0642, lon: 141.3469 },
   Sendai: { lat: 38.2688, lon: 140.8721 },
@@ -137,7 +136,7 @@ async function fetchCurrentPressure(city) {
 
   const pressures = data.hourly.pressure_msl;
   const times = data.hourly.time.map(t => new Date(t));
-  
+
   const now = new Date();
   let closestIndex = -1;
   let minDiff = Infinity;
@@ -201,7 +200,12 @@ async function fetchFutureForecast(city, pressures, times) {
 
   const futureBox = document.getElementById("futureForecast");
   const alertBox = document.getElementById("alertMessage");
-  futureBox.innerHTML = "<strong>未来7日間の気圧・寒暖差:</strong><br>";
+
+  futureBox.innerHTML = `
+    <strong>未来7日間の気圧・寒暖差:</strong><br>
+    <small>🔍 この気圧差・寒暖差は、1日の中（0時〜24時）の最大値と最小値の差です。</small><br><br>
+  `;
+
   alertBox.innerHTML = "";
 
   const pressuresDailyMax = data.daily.pressure_msl_max;
@@ -261,5 +265,6 @@ async function fetchFutureForecast(city, pressures, times) {
   }
 }
 </script>
+
 </body>
 </html>
