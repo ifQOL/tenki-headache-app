@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>気圧チェッカー（localStorage版・安定版）</title>
+  <title>気圧チェッカー（日時急変注意版）</title>
   <style>
     body {
       font-family: sans-serif;
@@ -160,14 +160,17 @@ async function fetchFutureForecast(city) {
   const pressures = data.hourly.pressure_msl;
   const times = data.hourly.time.map(t => new Date(t));
 
+  // --- 急変パターン検出（未来24時間内） ---
   for (let i = 0; i < pressures.length - 2; i++) {
     const first = pressures[i];
     const mid = pressures[i + 1];
     const last = pressures[i + 2];
     if ((first > mid && mid < last) || (first < mid && mid > last)) {
-      const t1 = times[i].toLocaleTimeString("ja-JP", { hour: '2-digit', hour12: false });
-      const t3 = times[i + 2].toLocaleTimeString("ja-JP", { hour: '2-digit', hour12: false });
-      alertBox.innerHTML = `⚡ 急変注意：${t1}時〜${t3}時に気圧反転の可能性あり！`;
+      const t1 = times[i];
+      const t3 = times[i + 2];
+      const t1str = `${t1.getMonth() + 1}月${t1.getDate()}日${t1.getHours()}時`;
+      const t3str = `${t3.getMonth() + 1}月${t3.getDate()}日${t3.getHours()}時`;
+      alertBox.innerHTML = `⚡ 急変注意：${t1str}〜${t3str} に気圧反転の可能性あり！`;
       break;
     }
   }
@@ -184,5 +187,6 @@ async function fetchFutureForecast(city) {
   }
 }
 </script>
+
 </body>
 </html>
