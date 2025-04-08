@@ -65,6 +65,19 @@
     .alert-card.danger {
       background: #ffccbc;
     }
+    small {
+      display: block;
+      margin-top: 10px;
+      color: #555;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    .summary-comment {
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      color: #2c6e91;
+    }
     canvas {
       margin-top: 20px;
     }
@@ -203,7 +216,9 @@ async function fetchFutureForecast(city, pressures, times) {
 
   futureBox.innerHTML = `
     <strong>未来7日間の気圧・寒暖差:</strong><br>
-    <small>🔍 この気圧差・寒暖差は、1日の中（0時〜24時）の最大値と最小値の差です。</small><br><br>
+    <small>🔍 この気圧差・寒暖差は、1日の中（0時〜24時）の最大値と最小値の差です。<br>
+    ⚡ 気圧差4hPa以上で注意、8hPa以上で超注意<br>
+    🌡️ 寒暖差7℃以上で注意、15℃以上で超注意</small><br><br>
   `;
 
   alertBox.innerHTML = "";
@@ -213,6 +228,8 @@ async function fetchFutureForecast(city, pressures, times) {
   const tempMax = data.daily.temperature_2m_max;
   const tempMin = data.daily.temperature_2m_min;
   const days = data.daily.time;
+
+  let cautionCount = 0;
 
   if (pressureChart) pressureChart.destroy();
   const ctx = document.getElementById('pressureChart').getContext('2d');
@@ -257,12 +274,23 @@ async function fetchFutureForecast(city, pressures, times) {
     }
 
     if (warnings) {
+      cautionCount++;
       const alertDiv = document.createElement('div');
       alertDiv.className = `alert-card ${level}`;
       alertDiv.innerHTML = `📅 ${days[d]}<br>${warnings}`;
       futureBox.appendChild(alertDiv);
     }
   }
+
+  // 📝 まとめコメントを最後に追加
+  const summary = document.createElement('div');
+  summary.className = 'summary-comment';
+  if (cautionCount >= 4) {
+    summary.innerText = "⚠️ 今週は寒暖差・気圧差が大きい日が多いので注意しましょう！";
+  } else {
+    summary.innerText = "🕊 今週は比較的安定しています。";
+  }
+  futureBox.appendChild(summary);
 }
 </script>
 
