@@ -97,9 +97,9 @@
       const times = data.hourly.time.map(t => new Date(t));
 
       const now = new Date();
-      let closestTodayIndex = 0;
+      let closestTodayIndex = -1;
       let minDiffToday = Infinity;
-      let closestYesterdayIndex = 0;
+      let closestYesterdayIndex = -1;
       let minDiffYesterday = Infinity;
 
       for (let i = 0; i < times.length; i++) {
@@ -112,6 +112,11 @@
           minDiffYesterday = diffMs;
           closestYesterdayIndex = i;
         }
+      }
+
+      if (closestTodayIndex === -1 || closestYesterdayIndex === -1) {
+        document.getElementById("pressureInfo").innerHTML = "⚠️ 現在または昨日の気圧データが取得できませんでした。";
+        return;
       }
 
       const currentPressure = pressures[closestTodayIndex];
@@ -152,7 +157,6 @@
       const pressures = data.hourly.pressure_msl;
       const times = data.hourly.time.map(t => new Date(t));
 
-      // 急変パターン検出（未来24時間内）
       for (let i = 0; i < pressures.length - 2; i++) {
         const first = pressures[i];
         const mid = pressures[i + 1];
@@ -165,7 +169,6 @@
         }
       }
 
-      // 未来1週間の日ごとの最大・最小差
       const maxes = data.daily.pressure_msl_max;
       const mins = data.daily.pressure_msl_min;
       const days = data.daily.time;
